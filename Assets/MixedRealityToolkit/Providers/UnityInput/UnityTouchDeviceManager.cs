@@ -1,4 +1,6 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+﻿// Refer to line 157
+
+// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using Microsoft.MixedReality.Toolkit.Utilities;
@@ -12,9 +14,9 @@ namespace Microsoft.MixedReality.Toolkit.Input.UnityInput
     /// Manages Touch devices using unity input system.
     /// </summary>
     [MixedRealityDataProvider(
-        typeof(IMixedRealityInputSystem),
-        (SupportedPlatforms)(-1),  // All platforms supported by Unity
-        "Unity Touch Device Manager")]
+         typeof(IMixedRealityInputSystem),
+         (SupportedPlatforms)(-1),  // All platforms supported by Unity
+         "Unity Touch Device Manager")]
     public class UnityTouchDeviceManager : BaseInputDeviceManager
     {
         /// <summary>
@@ -38,6 +40,7 @@ namespace Microsoft.MixedReality.Toolkit.Input.UnityInput
         public override void Update()
         {
             int touchCount = UInput.touchCount;
+
             for (var i = 0; i < touchCount; i++)
             {
                 Touch touch = UInput.touches[i];
@@ -71,7 +74,7 @@ namespace Microsoft.MixedReality.Toolkit.Input.UnityInput
         public override void Disable()
         {
             IMixedRealityInputSystem inputSystem = Service as IMixedRealityInputSystem;
-            
+
             foreach (var controller in ActiveTouches)
             {
                 if (controller.Value == null || inputSystem == null) { continue; }
@@ -121,6 +124,8 @@ namespace Microsoft.MixedReality.Toolkit.Input.UnityInput
             }
 
             inputSystem?.RaiseSourceDetected(controller.InputSource, controller);
+
+            controller.TouchData = touch;
             controller.StartTouch();
             UpdateTouchData(touch, ray);
         }
@@ -148,6 +153,9 @@ namespace Microsoft.MixedReality.Toolkit.Input.UnityInput
             {
                 return;
             }
+
+            // @CN - We need to update the touch otherwise the phase will be wrong when we call EndTouch
+            controller.TouchData = touch;
 
             controller.EndTouch();
             IMixedRealityInputSystem inputSystem = Service as IMixedRealityInputSystem;

@@ -1,4 +1,7 @@
-﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+﻿// Refer to lines 22, 131, 168 and the Update() Method.
+
+
+// Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using Microsoft.MixedReality.Toolkit.Utilities;
@@ -7,16 +10,17 @@ using UnityEngine;
 namespace Microsoft.MixedReality.Toolkit.Input.UnityInput
 {
     [MixedRealityController(
-        SupportedControllerType.TouchScreen,
-        new[] { Handedness.Any })]
+         SupportedControllerType.TouchScreen,
+         new[] { Handedness.Any })]
     public class UnityTouchController : BaseController
     {
         public UnityTouchController(TrackingState trackingState, Handedness controllerHandedness, IMixedRealityInputSource inputSource = null, MixedRealityInteractionMapping[] interactions = null)
-                : base(trackingState, controllerHandedness, inputSource, interactions)
+        : base(trackingState, controllerHandedness, inputSource, interactions)
         {
         }
 
-        private const float K_CONTACT_EPSILON = 30.0f;
+        // @CN - Changed because the original 30f will mean pointerclicked never gets triggered.
+        private const float K_CONTACT_EPSILON = 0.003f;
 
         /// <summary>
         /// Time in seconds to determine if the contact registers as a tap or a hold
@@ -92,12 +96,21 @@ namespace Microsoft.MixedReality.Toolkit.Input.UnityInput
             isHolding = true;
         }
 
+        private int startPending = 0;
+
         /// <summary>
         /// Update the touch data.
         /// </summary>
         public void Update()
         {
             if (!isTouched) { return; }
+
+            if (startPending == 2)
+            {
+                StartTouch();
+            }
+
+            startPending++;
 
             Lifetime += Time.deltaTime;
 
@@ -114,6 +127,9 @@ namespace Microsoft.MixedReality.Toolkit.Input.UnityInput
                 lastPose.Rotation = InputSource.Pointers[0].BaseCursor.Rotation;
                 InputSystem?.RaiseSourcePoseChanged(InputSource, this, lastPose);
 
+                // @CN - To use with manipulationhandlers we must call RaisePointerDragged.
+                InputSystem?.RaisePointerDragged(InputSource.Pointers[0], Interactions[1].MixedRealityInputAction);
+
                 Interactions[1].PoseData = lastPose;
 
                 if (Interactions[1].Changed)
@@ -124,7 +140,7 @@ namespace Microsoft.MixedReality.Toolkit.Input.UnityInput
                 if (!isManipulating)
                 {
                     if (Mathf.Abs(TouchData.deltaPosition.x) > ManipulationThreshold ||
-                        Mathf.Abs(TouchData.deltaPosition.y) > ManipulationThreshold)
+                            Mathf.Abs(TouchData.deltaPosition.y) > ManipulationThreshold)
                     {
                         InputSystem?.RaiseGestureCanceled(this, holdingAction);
                         isHolding = false;
@@ -145,8 +161,10 @@ namespace Microsoft.MixedReality.Toolkit.Input.UnityInput
         /// </summary>
         public void EndTouch()
         {
+            startPending = 0;
             if (TouchData.phase == TouchPhase.Ended)
             {
+                // @CN - Instead of changing K_CONTACT_EPSILON the sign could be inverted here.
                 if (Lifetime < K_CONTACT_EPSILON)
                 {
                     if (isHolding)
@@ -174,7 +192,6 @@ namespace Microsoft.MixedReality.Toolkit.Input.UnityInput
                         InputSystem?.RaiseGestureCanceled(this, manipulationAction);
                         isManipulating = false;
                     }
-
                     InputSystem?.RaisePointerClicked(InputSource.Pointers[0], Interactions[2].MixedRealityInputAction, TouchData.tapCount);
                 }
 
@@ -208,7 +225,6 @@ namespace Microsoft.MixedReality.Toolkit.Input.UnityInput
             Debug.Assert(!isManipulating);
 
             InputSystem?.RaisePointerUp(InputSource.Pointers[0], Interactions[2].MixedRealityInputAction);
-
             Lifetime = 0.0f;
             isTouched = false;
             Interactions[1].PoseData = MixedRealityPose.ZeroIdentity;
